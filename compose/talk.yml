@@ -1,0 +1,27 @@
+---
+services:
+  nextcloud_talk:
+    container_name: nextcloud_talk
+    image: ${TALK_IMAGE}
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${TALK_TURN_PORT}:${TALK_TURN_PORT}/tcp"
+      - "${TALK_TURN_PORT}:${TALK_TURN_PORT}/udp"
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    environment:
+      NC_DOMAIN: ${NEXTCLOUD_DOMAIN}
+      TALK_HOST: ${NEXTCLOUD_DOMAIN}
+      TALK_PORT: ${TALK_TURN_PORT}
+      TURN_SECRET: ${TURN_SECRET}
+      SIGNALING_SECRET: ${SIGNALING_SECRET}
+      INTERNAL_SECRET: ${INTERNAL_SECRET}
+      TZ: ${TZ:-UTC}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - nextcloud-net

@@ -1,62 +1,131 @@
-# Nextcloud (local)
+# nextcloud-easy-deploy
 
-Docker Compose stack: Nextcloud + MariaDB + Collabora CODE + Talk HPB.
+Production-oriented Nextcloud for a VPS: Nextcloud with PostgreSQL and Redis,
+Collabora Online for documents, and the Talk high-performance backend for
+calls. Caddy provides HTTPS certificates.
 
-Designed for a single-host local/LAN deploy where the browser and containers share the same hostnames (`localhost`).
+On its own it is a complete Nextcloud server. Together with
+[easydeploy-engine](https://github.com/opencomp-eu/easydeploy-engine) it is the
+groupware half of the **Nextcloud deployment path** (Kanidm, Stalwart,
+Nextcloud). In that setup the engine wires everything for you:
 
-## Quick start (new server)
+- **Sign-in:** people sign in with their Kanidm account (`user_oidc`).
+  Members of the Kanidm group `nextcloud-admins` are Nextcloud
+  administrators. The person who ran the wizard is in that group.
+- **Mail:** every user whose email address is on the Stalwart domain gets a
+  ready-to-use mailbox in Nextcloud Mail. Mail signs in to Stalwart with a
+  master login, so users never type a mail password.
+- **Calendar and contacts:** Nextcloud owns them (CalDAV/CardDAV at
+  `https://<domain>/remote.php/dav/`).
+- **Audit:** Nextcloud's `admin_audit` log goes into the engine's audit trail.
 
-```bash
-cd apps/nextcloud
-cp .env.example .env          # or let setup.sh create it
-# Edit NEXTCLOUD_URL / ports / TZ for this host, then:
-./setup.sh
-```
-
-`setup.sh` will:
-
-1. Create `.env` with random secrets if missing
-2. `docker compose up -d`
-3. Install/enable Deck, Calendar, Contacts, Mail, Talk, Collabora
-4. Wire overwrite URLs, Collabora WOPI, Talk signaling + TURN from `.env`
-
-Open `${NEXTCLOUD_URL}` (default `http://localhost:8082`) and log in with `NEXTCLOUD_ADMIN_*`.
-
-## Configuration
-
-All secrets and host-specific values live in **`.env`** (gitignored). See `.env.example`.
-
-| Variable | Purpose |
-|---|---|
-| `NEXTCLOUD_URL` / `NEXTCLOUD_PORT` | Browser URL and published port |
-| `MYSQL_*` | Database (set before first start; changing later needs a DB reset) |
-| `NEXTCLOUD_ADMIN_*` | Admin user (first install only) |
-| `COLLABORA_*` | Collabora admin + `server_name` |
-| `TURN_SECRET` / `SIGNALING_SECRET` / `INTERNAL_SECRET` | Talk HPB; must match values applied by `setup.sh` |
-
-After changing Talk secrets or URLs, re-run `./setup.sh` (or the Talk/Collabora sections) so Nextcloud stays in sync with the containers.
-
-## Services / ports
-
-| Service | Default |
-|---|---|
-| Nextcloud | `8082` |
-| Collabora | `9980` (host network) |
-| Talk signaling | `8181` |
-| Talk TURN/STUN | `3478` tcp/udp |
-
-## Day-to-day
+## Quick start
 
 ```bash
-docker compose up -d
-docker compose logs -f app
-docker compose down          # keeps volumes
-docker compose down -v       # wipe data (destructive)
+git clone --recurse-submodules https://github.com/opencomp-eu/nextcloud-easy-deploy.git
+cd nextcloud-easy-deploy
+bash wizard.sh
 ```
 
-## Notes
+The wizard asks for the Nextcloud domain (for example `cloud.example.com`), the
+office domain (`office.example.com`), the data directory, and whether to run
+Collabora and the Talk backend. Then it deploys. Point DNS for both domains at
+the server first.
 
-- Collabora uses **host networking** so it can reach Nextcloud at the same URL as the browser.
-- `talk-proxy` (socat) exposes Talk signaling on `localhost:8181` inside the Nextcloud container, matching the browser URL.
-- Talk’s backend URL is patched from `https://$NC_DOMAIN` to `$NEXTCLOUD_URL` for local HTTP.
-- Mail app TLS verification is on by default; only disable (`occ config:system:set app.mail.verify-tls-peer --type=boolean --value=false`) for self-signed IMAP certs.
+On a multi-service VPS, run `bash wizard.sh` in easydeploy-engine instead and
+choose the Nextcloud path. The engine runs this wizard with `--from-engine`.
+
+Without the wizard:
+
+```bash
+cp deploy.yaml.example deploy.yaml   # edit domains and data_dir
+bash apply.sh --ensure-dependencies
+```
+
+## What apply does
+
+`apply.sh` is idempotent. Re-run it after editing `deploy.yaml`.
+
+1. It generates secrets once, into `.nextcloud-easy-deploy/secrets.yaml` (mode 0600).
+2. It renders the Caddy site blocks: a standalone `caddy/Caddyfile`, or the
+   integrate fragment `.nextcloud-easy-deploy/integration/caddy.caddy` that
+   easydeploy-engine includes.
+3. It starts the containers. The Nextcloud image installs Nextcloud on first
+   start and upgrades it when `nextcloud.tag` changes.
+4. It configures Nextcloud through `occ`:
+   - trusted domain, proxy settings, and cron background jobs
+   - the apps from `nextcloud.apps`
+   - Kanidm sign-in
+   - Collabora
+   - the Talk signaling, TURN and STUN servers
+   - Mail provisioning
+   - the audit log
+
+   Commands that carry a secret pass their arguments to PHP on stdin
+   (`php/occ-stdin.php`), so secrets never show in a process list.
+
+| Container | Role |
+|---|---|
+| `nextcloud` | Nextcloud (Apache) |
+| `nextcloud_cron` | Background jobs every 5 minutes |
+| `nextcloud_postgres` | PostgreSQL 16. Nextcloud uses its own `nextcloud` role, which has no superuser rights |
+| `nextcloud_redis` | File locking and cache |
+| `nextcloud_collabora` | Collabora Online at `office.domain` (if `office.enabled`) |
+| `nextcloud_talk` | Signaling, Janus, and TURN (if `talk.enabled`) |
+| `nextcloud_caddy` | HTTPS (standalone mode only) |
+
+Talk signaling is served at `https://<nextcloud.domain>/standalone-signaling/`.
+TURN listens on the host at `talk.turn_port` (default 3478). **Open that port
+for both TCP and UDP in the firewall**, otherwise calls fail for people behind NAT.
+
+## Signing in
+
+- **With Kanidm (engine):** the login page sends people straight to Kanidm.
+- **Local administrator:** user `nextcloud.admin_user` (default `admin`). The
+  password is `NEXTCLOUD_ADMIN_PASSWORD` in `.nextcloud-easy-deploy/secrets.yaml`.
+  When Kanidm sign-in is on, use `https://<domain>/login?direct=1`. Keep this
+  account for break-glass access.
+
+To keep local accounts only, set `auth.oidc.managed: false`. To configure Mail
+accounts by hand, set `mail.managed: false`.
+
+## Operations
+
+```bash
+bash start.sh | bash stop.sh           # containers, with the files apply rendered
+bash update.sh                         # git pull; apply only when something changed
+bash scripts/compose.sh logs -f nextcloud
+bash scripts/maintenance.sh on|off     # Nextcloud maintenance mode
+docker exec -u www-data nextcloud php occ <command>
+```
+
+## Backups
+
+Backups use the shared easydeploy-lib Borg pipeline. Configure them in the
+`backup:` block of `deploy.yaml`. A backup holds:
+
+- `deploy.yaml` and `.nextcloud-easy-deploy/` (including the secrets)
+- `<data_dir>/html` (code, `config.php`, and apps)
+- `<data_dir>/data` (user files)
+- a `pg_dump` of the database
+
+```bash
+bash backup.sh                 # hot backup (the database dump is consistent)
+bash backup.sh --cold          # maintenance mode while staging: files and database match exactly
+bash backup.sh --export /root/nextcloud.tar.gz --encrypt
+bash restore.sh --latest       # or --archive NAME, or --file PATH
+bash bootstrap-from-backup.sh /root/nextcloud.tar.gz   # fresh VPS
+```
+
+Restore puts files back first. Then it starts only PostgreSQL
+(`scripts/start-postgres.sh`), loads the dump, and re-applies.
+
+## Development
+
+```bash
+uv sync --dev
+uv run pytest
+```
+
+The tests include `docker compose config` checks of the merged compose model.
+They are skipped when Docker is not installed.

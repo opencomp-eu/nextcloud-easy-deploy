@@ -1,0 +1,22 @@
+---
+services:
+  caddy:
+    container_name: nextcloud_caddy
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - nextcloud
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ${NED_CADDYFILE}:/etc/caddy/Caddyfile:ro
+      - nextcloud_caddy_data:/data
+      - nextcloud_caddy_config:/config
+    networks:
+      - nextcloud-net
+
+volumes:
+  nextcloud_caddy_data:
+  nextcloud_caddy_config:

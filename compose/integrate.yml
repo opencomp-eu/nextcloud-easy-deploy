@@ -1,0 +1,11 @@
+---
+services:
+  nextcloud:
+    networks:
+      - nextcloud-net
+      - easydeploy-net
+
+networks:
+  easydeploy-net:
+    external: true
+    name: easydeploy-net

@@ -1,0 +1,29 @@
+---
+services:
+  nextcloud_collabora:
+    container_name: nextcloud_collabora
+    image: ${COLLABORA_IMAGE}
+    restart: unless-stopped
+    cap_add:
+      - MKNOD
+    environment:
+      # Only this Nextcloud may open documents (WOPI host allow list).
+      aliasgroup1: https://${NEXTCLOUD_DOMAIN}:443
+      server_name: ${OFFICE_DOMAIN}
+      username: admin
+      password: ${COLLABORA_ADMIN_PASSWORD}
+      DONT_GEN_SSL_CERT: "1"
+      # Caddy terminates TLS; Collabora speaks plain HTTP behind it.
+      extra_params: >-
+        --o:ssl.enable=false
+        --o:ssl.termination=true
+        --o:welcome.enable=false
+        --o:net.frame_ancestors=${NEXTCLOUD_DOMAIN}
+      TZ: ${TZ:-UTC}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - nextcloud-net

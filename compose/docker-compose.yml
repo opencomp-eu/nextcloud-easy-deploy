@@ -1,0 +1,104 @@
+---
+x-nextcloud-env: &nextcloud-env
+  POSTGRES_HOST: nextcloud_postgres
+  POSTGRES_DB: nextcloud
+  POSTGRES_USER: nextcloud
+  POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+  REDIS_HOST: nextcloud_redis
+  REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
+  # Read at runtime by the image's reverse-proxy.config.php.
+  OVERWRITEHOST: ${NEXTCLOUD_DOMAIN}
+  OVERWRITEPROTOCOL: https
+  OVERWRITECLIURL: https://${NEXTCLOUD_DOMAIN}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES}
+  APACHE_DISABLE_REWRITE_IP: "1"
+  PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT}
+  PHP_UPLOAD_LIMIT: ${PHP_UPLOAD_LIMIT}
+  TZ: ${TZ:-UTC}
+
+x-nextcloud-volumes: &nextcloud-volumes
+  - ${NEXTCLOUD_HTML_DIR}:/var/www/html
+  - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
+
+services:
+  nextcloud:
+    container_name: nextcloud
+    image: ${NEXTCLOUD_IMAGE}
+    restart: unless-stopped
+    environment:
+      <<: *nextcloud-env
+      # The image installs Nextcloud on first start when these are set.
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN}
+    volumes:
+      - ${NEXTCLOUD_HTML_DIR}:/var/www/html
+      - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
+      # apply.py runs these through PHP; arguments arrive on stdin.
+      - ../php:/opt/easydeploy:ro
+    depends_on:
+      nextcloud_postgres:
+        condition: service_healthy
+      nextcloud_redis:
+        condition: service_healthy
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - nextcloud-net
+
+  nextcloud_cron:
+    container_name: nextcloud_cron
+    image: ${NEXTCLOUD_IMAGE}
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    environment: *nextcloud-env
+    volumes: *nextcloud-volumes
+    depends_on:
+      - nextcloud
+    logging: *logging
+    networks:
+      - nextcloud-net
+
+  nextcloud_postgres:
+    container_name: nextcloud_postgres
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      NEXTCLOUD_DB_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+    volumes:
+      - ${NEXTCLOUD_POSTGRES_DIR}:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+    logging: *logging
+    networks:
+      - nextcloud-net
+
+  nextcloud_redis:
+    container_name: nextcloud_redis
+    image: ${REDIS_IMAGE}
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging: *logging
+    networks:
+      - nextcloud-net
+
+networks:
+  nextcloud-net:
+    name: nextcloud-net

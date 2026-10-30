@@ -1,0 +1,6 @@
+---
+services:
+  nextcloud_talk:
+    networks:
+      - nextcloud-net
+      - easydeploy-net
