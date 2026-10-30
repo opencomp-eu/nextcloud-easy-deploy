@@ -7,10 +7,10 @@ services:
     volumes:
       - db:/var/lib/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: nextcloudroot
-      MYSQL_DATABASE: nextcloud
-      MYSQL_USER: nextcloud
-      MYSQL_PASSWORD: nextcloud
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-nextcloud}
+      MYSQL_USER: ${MYSQL_USER:-nextcloud}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -23,40 +23,41 @@ services:
     container_name: nextcloud
     restart: unless-stopped
     ports:
-      - "8082:80"
+      - "${NEXTCLOUD_PORT:-8082}:80"
     volumes:
       - nextcloud:/var/www/html
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       MYSQL_HOST: db
-      MYSQL_DATABASE: nextcloud
-      MYSQL_USER: nextcloud
-      MYSQL_PASSWORD: nextcloud
-      NEXTCLOUD_ADMIN_USER: admin
-      NEXTCLOUD_ADMIN_PASSWORD: admin
-      NEXTCLOUD_TRUSTED_DOMAINS: localhost
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-nextcloud}
+      MYSQL_USER: ${MYSQL_USER:-nextcloud}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS:-localhost}
+      TZ: ${TZ:-UTC}
     depends_on:
       db:
         condition: service_healthy
 
-  # Host networking so Collabora can reach Nextcloud at localhost:8082 (same as the browser)
+  # Host networking so Collabora can reach Nextcloud at the browser URL
   collabora:
     image: collabora/code:latest
     container_name: nextcloud-collabora
     restart: unless-stopped
     network_mode: host
     environment:
-      server_name: localhost:9980
-      aliasgroup1: "http://localhost:8082"
-      username: admin
-      password: admin
+      server_name: ${COLLABORA_DOMAIN:-localhost:9980}
+      aliasgroup1: ${NEXTCLOUD_URL:-http://localhost:8082}
+      username: ${COLLABORA_ADMIN_USER:-admin}
+      password: ${COLLABORA_ADMIN_PASSWORD}
       DONT_GEN_SSL_CERT: "1"
       extra_params: >
         --o:ssl.enable=false
         --o:ssl.termination=false
         --o:net.proto=IPv4
-        --o:net.frame_ancestors=http://localhost:8082
+        --o:net.frame_ancestors=${NEXTCLOUD_URL:-http://localhost:8082}
         --o:welcome.enable=false
     cap_add:
       - MKNOD
@@ -68,29 +69,30 @@ services:
     init: true
     restart: unless-stopped
     ports:
-      - "8181:8081"          # signaling (browser)
-      - "3478:3478/tcp"      # TURN/STUN
-      - "3478:3478/udp"
-    # So Talk can call Nextcloud at http://localhost:8082 (browser origin)
+      - "${TALK_SIGNALING_PORT:-8181}:8081"
+      - "${TALK_TURN_PORT:-3478}:3478/tcp"
+      - "${TALK_TURN_PORT:-3478}:3478/udp"
+    # So Talk can call Nextcloud at the browser origin (local http)
     extra_hosts:
       - "localhost:host-gateway"
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=1
     environment:
-      NC_DOMAIN: localhost
-      TALK_HOST: localhost
-      TALK_PORT: "3478"
-      TURN_SECRET: e902d213f012f79027eaa9fcf881db1321452f4fb7965daa16797061eac209b1
-      SIGNALING_SECRET: 3fc6083903a05cc13a3b921ecbf5f06c369f00ffd9a84ec2e82ee0bc18d69bed
-      INTERNAL_SECRET: e94bd986239a8db83528b651ebcd0daf73179c328c1b412ecabd0a47ac67d0d0
-      TZ: Europe/Berlin
-      SKIP_CERT_VERIFY: "true"
-    # aio-talk defaults to https://NC_DOMAIN; local Nextcloud is http://localhost:8082
+      NC_DOMAIN: ${NC_DOMAIN:-localhost}
+      NEXTCLOUD_URL: ${NEXTCLOUD_URL:-http://localhost:8082}
+      TALK_HOST: ${TALK_HOST:-localhost}
+      TALK_PORT: ${TALK_TURN_PORT:-3478}
+      TURN_SECRET: ${TURN_SECRET}
+      SIGNALING_SECRET: ${SIGNALING_SECRET}
+      INTERNAL_SECRET: ${INTERNAL_SECRET}
+      TZ: ${TZ:-UTC}
+      SKIP_CERT_VERIFY: ${TALK_SKIP_CERT_VERIFY:-true}
+    # aio-talk defaults to https://NC_DOMAIN; override to local Nextcloud URL
     command:
       - bash
       - -c
       - |
-        sed -i 's|urls = https://localhost|urls = http://localhost:8082|' /conf/signaling.conf
+        sed -i "s|urls = https://$${NC_DOMAIN}|urls = $${NEXTCLOUD_URL}|" /conf/signaling.conf
         exec dinit --system --container nats-server eturnal janus signaling
 
   # Lets Nextcloud reach Talk at localhost:8181 (same URL the browser uses)
@@ -102,7 +104,7 @@ services:
     depends_on:
       - app
       - talk
-    command: TCP-LISTEN:8181,fork,reuseaddr TCP:talk:8081
+    command: TCP-LISTEN:${TALK_SIGNALING_PORT:-8181},fork,reuseaddr TCP:talk:8081
 
 volumes:
   db:
