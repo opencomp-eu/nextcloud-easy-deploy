@@ -78,6 +78,24 @@ def test_office_retries_until_collabora_answers():
                             "--callback-url=https://cloud.acme.test")
 
 
+def test_mail_enables_the_kanidm_password_bridge(fake_occ):
+    from scripts.integration import Endpoint, MailProvisioning
+
+    mail = MailProvisioning(
+        email_domain="acme.test",
+        imap=Endpoint("mail.acme.test", 993, "ssl"),
+        smtp=Endpoint("mail.acme.test", 465, "ssl"),
+        sieve=Endpoint("mail.acme.test", 4190, "tls"),
+        master_user="admin",
+        master_user_separator="%",
+        master_password="pw",
+    )
+    notes = configure.configure_mail(fake_occ, mail)
+    assert fake_occ.helpers[0][0] == "mail-provisioning.php"
+    assert ("app:enable", "easydeploy_mail") in fake_occ.calls
+    assert notes and "master password" in notes[0]
+
+
 def test_audit_enables_or_disables_admin_audit(fake_occ, tmp_path):
     configure.configure_audit(fake_occ, AuditSpool(tmp_path))
     assert ("app:enable", "admin_audit") in fake_occ.calls

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>easydeploy_mail</id>
+	<name>EasyDeploy Mail</name>
+	<summary>Store the Stalwart master password for Kanidm sign-in</summary>
+	<description>Kanidm sign-in has no Nextcloud password. Nextcloud Mail then skips its master password and IMAP connects with an empty one. This app stores the Stalwart master password when the person signs in.</description>
+	<version>1.0.0</version>
+	<licence>agpl</licence>
+	<author>OpenComp</author>
+	<namespace>EasyDeployMail</namespace>
+	<category>integration</category>
+	<dependencies>
+		<nextcloud min-version="32" max-version="34"/>
+	</dependencies>
+</info>

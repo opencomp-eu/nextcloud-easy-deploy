@@ -200,7 +200,10 @@ def test_compose_model_is_valid(tmp_path, state, mode):
         or "idm.acme.test:host-gateway" in str(nextcloud["extra_hosts"])
     targets = {volume["target"] for volume in nextcloud["volumes"]}
     assert {"/var/www/html", "/var/www/html/data", "/opt/easydeploy",
+            "/var/www/html/custom_apps/easydeploy_mail",
             "/var/lib/easydeploy-audit"} <= targets
+    cron_targets = {volume["target"] for volume in services["nextcloud_cron"]["volumes"]}
+    assert "/var/www/html/custom_apps/easydeploy_mail" in cron_targets
     assert nextcloud["environment"]["POSTGRES_USER"] == "nextcloud"
     assert ("easydeploy-net" in nextcloud["networks"]) == (mode == "integrate")
 

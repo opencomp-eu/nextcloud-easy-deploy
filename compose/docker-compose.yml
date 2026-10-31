@@ -19,6 +19,8 @@ x-nextcloud-env: &nextcloud-env
 x-nextcloud-volumes: &nextcloud-volumes
   - ${NEXTCLOUD_HTML_DIR}:/var/www/html
   - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
+  # Kanidm sign-in stores the Stalwart master password. Cron loads every enabled app.
+  - ../php/easydeploy_mail:/var/www/html/custom_apps/easydeploy_mail:ro
 
 services:
   nextcloud:
@@ -36,6 +38,7 @@ services:
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
       # apply.py runs these through PHP; arguments arrive on stdin.
       - ../php:/opt/easydeploy:ro
+      - ../php/easydeploy_mail:/var/www/html/custom_apps/easydeploy_mail:ro
     depends_on:
       nextcloud_postgres:
         condition: service_healthy

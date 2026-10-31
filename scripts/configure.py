@@ -176,8 +176,11 @@ def configure_mail(occ: Occ, mail: MailProvisioning | None) -> list[str]:
     result = occ.helper("mail-provisioning.php", data)
     count = next((line.split(":", 1)[1] for line in result.stdout.splitlines()
                   if line.startswith("provisioned:")), "0")
+    # Kanidm sessions have no Nextcloud password, so Mail never stores the
+    # Stalwart master password on its own. This app does that at sign-in.
+    occ.run("app:enable", "easydeploy_mail")
     return [f"Mail: Nextcloud Mail → Stalwart ({mail.mail_host}) for @{mail.email_domain} "
-            f"({count} account(s) provisioned; new users get one at first sign-in)."]
+            f"({count} account(s); Kanidm sign-in uses the Stalwart master password)."]
 
 
 def configure_audit(occ: Occ, spool: AuditSpool | None) -> list[str]:

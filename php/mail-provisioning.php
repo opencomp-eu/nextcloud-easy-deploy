@@ -44,3 +44,15 @@ if ($existing === null) {
 
 $count = $manager->provision();
 echo "provisioned:{$count}\n";
+
+// Kanidm sign-in has no Nextcloud password. Mail's own middleware then skips
+// storing the master password (it gives up when login credentials are
+// unavailable), and IMAP is attempted with an empty password. Apply the
+// master password here for everyone who already has an account. New sign-ins
+// are covered by the easydeploy_mail app.
+$configs = $manager->getConfigs();
+$userManager = \OC::$server->get(\OCP\IUserManager::class);
+$userManager->callForAllUsers(function (\OCP\IUser $user) use ($manager, $configs): void {
+	$manager->updatePassword($user, null, $configs);
+});
+echo "passwords:set\n";

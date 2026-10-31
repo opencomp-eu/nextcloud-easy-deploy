@@ -13,8 +13,10 @@ Nextcloud). In that setup the engine wires everything for you:
   Members of the Kanidm group `nextcloud-admins` are Nextcloud
   administrators. The person who ran the wizard is in that group.
 - **Mail:** every user whose email address is on the Stalwart domain gets a
-  ready-to-use mailbox in Nextcloud Mail. Mail signs in to Stalwart with a
-  master login, so users never type a mail password.
+  ready-to-use mailbox in Nextcloud Mail. Mail signs in to Stalwart as
+  `mailbox%admin` with the recovery admin password, so users never type a mail
+  password. Kanidm sign-in has no Nextcloud password; apply stores that master
+  password, and a small app stores it again at each sign-in.
 - **Calendar and contacts:** Nextcloud owns them (CalDAV/CardDAV at
   `https://<domain>/remote.php/dav/`).
 - **Audit:** Nextcloud's `admin_audit` log goes into the engine's audit trail.
