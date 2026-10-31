@@ -174,8 +174,7 @@ def configure_mail(occ: Occ, mail: MailProvisioning | None) -> list[str]:
         return [f"Warning: Nextcloud Mail not provisioned yet ({exc}). "
                 "Apply the Stalwart kit, then re-run this apply."]
     # Kanidm sessions have no Nextcloud password, so Mail never stores the
-    # Stalwart master password on its own. This app does that at sign-in, and
-    # tells the Mail page a password is available so it will sync the folder.
+    # Stalwart master password on its own. This app does that at sign-in.
     occ.run("app:enable", "easydeploy_mail")
     # QRESYNC leaves the folder uncached; ignore it before the cache fill below.
     occ.helper("mail-imap-compat.php", {})

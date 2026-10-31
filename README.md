@@ -16,8 +16,9 @@ Nextcloud). In that setup the engine wires everything for you:
   ready-to-use mailbox in Nextcloud Mail. Mail signs in to Stalwart as
   `mailbox%admin` with the recovery admin password, so users never type a mail
   password. Kanidm sign-in has no Nextcloud password; apply stores that master
-  password, caches each folder, and a small app does both again at sign-in.
-  Mail would otherwise skip the sync and leave the message list on HTTP 400.
+  password and caches each folder, and a small app does both again at sign-in.
+  Apply also makes Mail ignore QRESYNC and load its scripts with Nextcloud's
+  content-security nonce, so the mailbox is drawn instead of left blank.
 - **Calendar and contacts:** Nextcloud owns them (CalDAV/CardDAV at
   `https://<domain>/remote.php/dav/`).
 - **Audit:** Nextcloud's `admin_audit` log goes into the engine's audit trail.

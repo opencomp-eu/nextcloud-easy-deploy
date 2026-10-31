@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace OCA\EasyDeployMail\AppInfo;
 
-use OCA\EasyDeployMail\Listener\AllowProvisionedSync;
 use OCA\EasyDeployMail\Listener\ProvisionMailPassword;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
-use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\User\Events\UserLoggedInEvent;
 
 class Application extends App implements IBootstrap {
@@ -22,7 +20,6 @@ class Application extends App implements IBootstrap {
 
 	public function register(IRegistrationContext $context): void {
 		$context->registerEventListener(UserLoggedInEvent::class, ProvisionMailPassword::class);
-		$context->registerEventListener(BeforeTemplateRenderedEvent::class, AllowProvisionedSync::class);
 	}
 
 	public function boot(IBootContext $context): void {
