@@ -23,6 +23,16 @@ def parse_json_output(text: str) -> Any:
     return json.loads(text[min(starts):])
 
 
+def _ready(status: dict | None) -> bool:
+    return bool(status and status.get("installed") and not status.get("maintenance")
+                and not status.get("needsDbUpgrade"))
+
+
+def _upgrade_pending(status: dict | None) -> bool:
+    return bool(status and status.get("installed") and not status.get("maintenance")
+                and status.get("needsDbUpgrade"))
+
+
 class OccError(RuntimeError):
     def __init__(self, args: Sequence[str], result: subprocess.CompletedProcess):
         self.args_list = list(args)
@@ -75,24 +85,49 @@ class Occ:
 
     def status(self) -> dict | None:
         result = self._exec(["php", "occ", "status", "--output=json", "--no-warnings"])
-        if result.returncode != 0:
-            return None
         try:
-            data = parse_json_output(result.stdout)
+            data = parse_json_output(result.stdout or "")
         except ValueError:
             return None
-        return data if isinstance(data, dict) else None
+        if not isinstance(data, dict) or "installed" not in data:
+            return None
+        return data
+
+    def entrypoint_finished(self) -> bool:
+        """The image runs upgrades before it replaces itself with Apache."""
+        result = self._exec(["cat", "/proc/1/cmdline"])
+        if result.returncode != 0 or not result.stdout:
+            return False
+        command = result.stdout.replace("\x00", " ")
+        return "apache2" in command and "entrypoint" not in command
 
     def wait_installed(self, *, timeout: float = 600, interval: float = 5,
                        sleep: Callable[[float], None] = time.sleep) -> dict:
-        """Wait until the image entrypoint has finished installing or upgrading."""
+        """Wait until Nextcloud is installed, idle, and its database matches the code.
+
+        The image entrypoint upgrades Nextcloud when the image version changes. It
+        does not notice an already-enabled app whose version changed on a bind
+        mount, and then the web UI stays on "Update needed". Once Apache is
+        serving, finish that upgrade here.
+        """
         deadline = time.monotonic() + timeout
         last: dict | None = None
+        attempted = False
         while True:
             last = self.status()
-            if last and last.get("installed") and not last.get("maintenance") \
-                    and not last.get("needsDbUpgrade"):
+            if _ready(last):
                 return last
+            if _upgrade_pending(last) and attempted:
+                raise RuntimeError(
+                    "occ upgrade finished but Nextcloud still needs a database upgrade "
+                    f"({json.dumps(last)}). Check: docker logs nextcloud"
+                )
+            if _upgrade_pending(last) and self.entrypoint_finished():
+                attempted = True
+                print("Nextcloud still needs a database upgrade; running occ upgrade…",
+                      flush=True)
+                self.run("upgrade")
+                continue
             if time.monotonic() >= deadline:
                 state = "not reachable" if last is None else json.dumps(last)
                 raise RuntimeError(

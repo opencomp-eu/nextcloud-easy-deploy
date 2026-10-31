@@ -54,7 +54,9 @@ bash apply.sh --ensure-dependencies
    integrate fragment `.nextcloud-easy-deploy/integration/caddy.caddy` that
    easydeploy-engine includes.
 3. It starts the containers. The Nextcloud image installs Nextcloud on first
-   start and upgrades it when `nextcloud.tag` changes.
+   start and upgrades it when `nextcloud.tag` changes. If the site still says
+   "Update needed" after that (an enabled app version changed), apply runs
+   `occ upgrade` itself.
 4. It configures Nextcloud through `occ`:
    - trusted domain, proxy settings, and cron background jobs
    - the apps from `nextcloud.apps`
