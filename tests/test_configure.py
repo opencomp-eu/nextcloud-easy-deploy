@@ -91,9 +91,13 @@ def test_mail_enables_the_kanidm_password_bridge(fake_occ):
         master_password="pw",
     )
     notes = configure.configure_mail(fake_occ, mail)
-    assert fake_occ.helpers[0][0] == "mail-provisioning.php"
+    assert [name for name, _payload in fake_occ.helpers] == [
+        "mail-imap-compat.php",
+        "mail-provisioning.php",
+    ]
     assert ("app:enable", "easydeploy_mail") in fake_occ.calls
     assert notes and "master password" in notes[0]
+    assert "folder(s) cached" in notes[0]
 
 
 def test_audit_enables_or_disables_admin_audit(fake_occ, tmp_path):

@@ -4,8 +4,8 @@
 	<id>easydeploy_mail</id>
 	<name>EasyDeploy Mail</name>
 	<summary>Store the Stalwart master password for Kanidm sign-in</summary>
-	<description>Kanidm sign-in has no Nextcloud password. Nextcloud Mail then skips its master password and IMAP connects with an empty one. This app stores the Stalwart master password when the person signs in.</description>
-	<version>1.0.0</version>
+	<description>Kanidm sign-in has no Nextcloud password. Nextcloud Mail then skips its master password and leaves folders uncached, so the message list returns HTTP 400. This app stores the Stalwart master password, caches those folders, and lets Mail sync them.</description>
+	<version>1.1.0</version>
 	<licence>agpl</licence>
 	<author>OpenComp</author>
 	<namespace>EasyDeployMail</namespace>

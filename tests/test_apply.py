@@ -150,7 +150,10 @@ def test_configure_nextcloud_runs_every_wired_step(tmp_path, fake_occ):
     secret_commands = [call[0] for call in fake_occ.secret_calls]
     assert secret_commands == ["user_oidc:provider", "talk:signaling:add", "talk:turn:add"]
     assert "richdocuments:activate-config" in fake_occ.commands()
-    assert fake_occ.helpers[0][0] == "mail-provisioning.php"
+    assert [name for name, _payload in fake_occ.helpers] == [
+        "mail-imap-compat.php",
+        "mail-provisioning.php",
+    ]
     assert any(note.startswith("Sign-in: Kanidm") for note in notes)
     assert any(note.startswith("Audit:") for note in notes)
     plain = " ".join(" ".join(call) for call in fake_occ.calls)

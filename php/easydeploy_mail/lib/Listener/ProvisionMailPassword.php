@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\EasyDeployMail\Listener;
 
+use OCA\EasyDeployMail\Sync\CacheMailboxes;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\User\Events\UserLoggedInEvent;
@@ -38,6 +39,8 @@ class ProvisionMailPassword implements IEventListener {
 			$manager->provisionSingleUser($configs, $user);
 			// null: there is no Nextcloud password. Mail substitutes the master password.
 			$manager->updatePassword($user, null, $configs);
+			// The message list 400s until the folder has sync tokens.
+			CacheMailboxes::cacheUser($user);
 		} catch (Throwable $e) {
 			\OC::$server->get(LoggerInterface::class)->warning(
 				'Could not store the Stalwart master password for ' . $user->getUID() . ': ' . $e->getMessage(),
