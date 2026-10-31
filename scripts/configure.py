@@ -174,22 +174,17 @@ def configure_mail(occ: Occ, mail: MailProvisioning | None) -> list[str]:
         return [f"Warning: Nextcloud Mail not provisioned yet ({exc}). "
                 "Apply the Stalwart kit, then re-run this apply."]
     # Kanidm sessions have no Nextcloud password, so Mail never stores the
-    # Stalwart master password on its own. This app does that at sign-in.
+    # Stalwart master password on its own. This app does that at sign-in, and
+    # tells the Mail page a password is available so it will sync the mailbox.
     occ.run("app:enable", "easydeploy_mail")
-    # QRESYNC leaves the folder uncached; ignore it before the cache fill below.
+    # QRESYNC leaves the folder uncached, and the bundle's script nonce is the
+    # login token rather than the page's content-security nonce.
     occ.helper("mail-imap-compat.php", {})
     result = occ.helper("mail-provisioning.php", data)
     count = next((line.split(":", 1)[1] for line in result.stdout.splitlines()
                   if line.startswith("provisioned:")), "0")
-    lines = result.stdout.splitlines()
-    cached = next((line.split(":", 1)[1] for line in lines if line.startswith("cached:")), "0")
-    failed = [line.split(":", 1)[1] for line in lines if line.startswith("sync-failed:")]
-    note = (f"Mail: Nextcloud Mail → Stalwart ({mail.mail_host}) for @{mail.email_domain} "
-            f"({count} account(s), {cached} folder(s) cached; "
-            "Kanidm sign-in uses the Stalwart master password).")
-    if failed:
-        note += " Folder cache failed: " + "; ".join(failed)
-    return [note]
+    return [f"Mail: Nextcloud Mail → Stalwart ({mail.mail_host}) for @{mail.email_domain} "
+            f"({count} account(s); Kanidm sign-in uses the Stalwart master password)."]
 
 
 def configure_audit(occ: Occ, spool: AuditSpool | None) -> list[str]:

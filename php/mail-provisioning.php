@@ -56,20 +56,3 @@ $userManager->callForAllUsers(function (\OCP\IUser $user) use ($manager, $config
 	$manager->updatePassword($user, null, $configs);
 });
 echo "passwords:set\n";
-
-// /apps/mail/api/messages returns HTTP 400 until each folder has sync tokens.
-// Cache the folders that opening Mail already discovered.
-$appManager->loadApp('easydeploy_mail');
-$cached = 0;
-$failed = [];
-$userManager->callForAllUsers(function (\OCP\IUser $user) use (&$cached, &$failed): void {
-	$result = \OCA\EasyDeployMail\Sync\CacheMailboxes::cacheUser($user);
-	$cached += $result['cached'];
-	foreach ($result['failed'] as $error) {
-		$failed[] = $user->getUID() . ' ' . $error;
-	}
-});
-echo "cached:{$cached}\n";
-foreach ($failed as $error) {
-	echo "sync-failed:{$error}\n";
-}

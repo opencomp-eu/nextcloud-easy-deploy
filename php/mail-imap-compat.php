@@ -84,8 +84,14 @@ function read_file(string $path): string {
 }
 
 function write_file(string $path, string $contents): void {
-	if (file_put_contents($path, $contents) === false) {
+	$temporary = $path . '.easydeploy-tmp';
+	if (file_put_contents($temporary, $contents) === false) {
 		fwrite(STDERR, "mail-imap-compat: cannot write {$path}\n");
+		exit(6);
+	}
+	if (!rename($temporary, $path)) {
+		@unlink($temporary);
+		fwrite(STDERR, "mail-imap-compat: cannot replace {$path}\n");
 		exit(6);
 	}
 	if (function_exists('opcache_invalidate')) {

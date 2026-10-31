@@ -97,7 +97,6 @@ def test_mail_enables_the_kanidm_password_bridge(fake_occ):
     ]
     assert ("app:enable", "easydeploy_mail") in fake_occ.calls
     assert notes and "master password" in notes[0]
-    assert "folder(s) cached" in notes[0]
 
 
 def test_audit_enables_or_disables_admin_audit(fake_occ, tmp_path):
