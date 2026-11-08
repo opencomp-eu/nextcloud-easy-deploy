@@ -1,10 +1,12 @@
 <?php
-// Two Mail adjustments the app store build does not make:
+// Mail adjustments the app store build does not make:
 // - Stalwart advertises QRESYNC. Horde waits for a CLOSED response the first
 //   SELECT never sends, so the folder is never cached.
 // - The bundle stamps every follow-up script with btoa(requestToken). That is
 //   not the Content-Security-Policy nonce, so the browser blocks the script
 //   that draws the mailbox and the page stays white.
+// - Three failed IMAP logins used to freeze that account for three hours. A
+//   mailbox that is still being created produces those failures.
 // Usage: php /opt/easydeploy/mail-imap-compat.php
 declare(strict_types=1);
 
@@ -19,6 +21,7 @@ if (!$appManager->isInstalled('mail')) {
 $appPath = $appManager->getAppPath('mail');
 patch_imap_factory($appPath . '/lib/IMAP/IMAPClientFactory.php');
 patch_script_nonce($appPath . '/js/mail.js');
+patch_rate_limit($appPath . '/lib/IMAP/HordeImapClient.php');
 
 function patch_imap_factory(string $path): void {
 	$source = read_file($path);
@@ -72,6 +75,30 @@ function patch_script_nonce(string $path): void {
 	}
 	write_file($path, $updated);
 	echo "nonce:patched\n";
+}
+
+function patch_rate_limit(string $path): void {
+	// Three authentication failures used to freeze the account for three hours.
+	// A mailbox that does not exist yet produces those failures, and Mail then
+	// refuses to try again after Stalwart has created it.
+	$source = read_file($path);
+	$marker = 'easydeploy rate-limit window';
+	if (str_contains($source, $marker)) {
+		echo "ratelimit:already\n";
+		return;
+	}
+	$needle = 'private const RATE_LIMIT_WINDOW = 3 * 60 * 60;';
+	if (!str_contains($source, $needle)) {
+		fwrite(STDERR, "mail-imap-compat: {$path} has no 3-hour auth rate limit; Mail changed and the patch needs an update\n");
+		exit(8);
+	}
+	$updated = str_replace(
+		$needle,
+		"private const RATE_LIMIT_WINDOW = 60; // {$marker}",
+		$source
+	);
+	write_file($path, $updated);
+	echo "ratelimit:patched\n";
 }
 
 function read_file(string $path): string {

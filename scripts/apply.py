@@ -580,6 +580,10 @@ def apply_configuration(*, skip_runtime: bool = False, skip_pull: bool = False) 
     if not skip_runtime:
         reconcile_runtime(config, skip_pull=skip_pull)
         notes = configure_nextcloud(config, secrets, integrations)
+        from scripts.mailbox_sync import install_mailbox_sync
+        from scripts.occ import Occ
+
+        notes += install_mailbox_sync(config, Occ())
         from scripts.update import record_current_lock
 
         record_current_lock()

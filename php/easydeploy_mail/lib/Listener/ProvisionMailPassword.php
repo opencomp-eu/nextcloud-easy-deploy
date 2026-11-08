@@ -15,6 +15,10 @@ use Throwable;
  * provisioning middleware then returns before it can copy the Stalwart master
  * password onto the mailbox, and the account stays on an empty IMAP password.
  *
+ * The mailbox itself may not exist yet: the regular sync runs every five
+ * minutes. Create it before storing the password. Mail connects only after
+ * this request finishes, and three early failures would lock the account.
+ *
  * @template-implements IEventListener<UserLoggedInEvent>
  */
 class ProvisionMailPassword implements IEventListener {
@@ -35,6 +39,7 @@ class ProvisionMailPassword implements IEventListener {
 			if ($configs === []) {
 				return;
 			}
+			(new EnsureMailbox())->waitForMailbox();
 			$manager->provisionSingleUser($configs, $user);
 			// null: there is no Nextcloud password. Mail substitutes the master password.
 			$manager->updatePassword($user, null, $configs);
