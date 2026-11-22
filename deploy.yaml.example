@@ -5,7 +5,7 @@ nextcloud:
   # Public hostname of Nextcloud
   domain: cloud.example.com
   image: docker.io/library/nextcloud
-  tag: "34.0.5-apache"
+  tag: "34.0.6-apache"
   # Holds html/ (Nextcloud code, config, apps), data/ (user files), postgres/
   data_dir: /var/lib/nextcloud
   # Local break-glass administrator (password in .nextcloud-easy-deploy/secrets.yaml).
