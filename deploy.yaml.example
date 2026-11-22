@@ -46,7 +46,7 @@ office:
 talk:
   enabled: true
   image: ghcr.io/nextcloud-releases/aio-talk
-  tag: "20261021_180331"
+  tag: "20261119_161514"
   turn_port: 3478
 
 # auth.oidc.provider: kanidm — written by easydeploy-engine (same VPS).
