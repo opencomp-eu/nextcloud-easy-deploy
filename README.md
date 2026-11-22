@@ -106,6 +106,16 @@ bash scripts/maintenance.sh on|off     # Nextcloud maintenance mode
 docker exec -u www-data nextcloud php occ <command>
 ```
 
+A shared address such as `info@example.com` is a mailbox of its own, shown in
+each named person's Mail next to their personal inbox. The mail-users sync
+does not remove it. Re-running the command leaves an existing mailbox and
+Mail account in place.
+
+```bash
+uv run python -m scripts.shared_inbox info@example.com thomas ada
+uv run python -m scripts.shared_inbox info@example.com thomas --name "Company inbox"
+```
+
 ## Backups
 
 Backups use the shared easydeploy-lib Borg pipeline. Configure them in the
