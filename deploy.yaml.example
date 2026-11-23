@@ -31,7 +31,7 @@ postgres:
 
 redis:
   image: docker.io/library/redis
-  tag: "7.4.12-alpine"
+  tag: "8.12.0-alpine"
 
 # Collabora Online (documents, spreadsheets, presentations in the browser)
 office:
